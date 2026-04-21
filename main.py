@@ -25,8 +25,17 @@ def rpc_worker():
             break
         
         if data['type'] == "BeatmapInitialized":
-            stored_song_data = data
             current_time = int(time.time())
+
+            stored_song_data = data
+            stored_song_data['start_time'] = current_time
+            stored_song_data['duration'] = int(data['duration'])
+
+            total_paused_duration = 0
+            pause_start_time = None
+
+            end_time = current_time + stored_song_data['duration']
+
             dt_object = datetime.fromtimestamp(current_time)
             new_dt = dt_object + timedelta(seconds=int(data['duration']))
             new_epoch = new_dt.timestamp()
@@ -35,7 +44,20 @@ def rpc_worker():
                 details=f"{data['author']} - {data['title']} | {', '.join(list(dict.fromkeys(data['mappers']))) or 'Unknown'}",
                 state=f"Status: Playing | {data['difficulty']}",
                 start=current_time,
-                end=round(new_epoch),
+                end=end_time,
+                small_image="quest",
+                small_text="Meta Quest"
+            )
+        
+        if data['type'] == "MultiplayerBeatmapInitialized":
+            current_time = int(time.time())
+            end_time = current_time + data['duration']
+            RPC.set_activity(
+                activity_type=ActivityType.PLAYING,
+                details=f"{data['author']} - {data['title']} | {', '.join(list(dict.fromkeys(data['mappers']))) or 'Unknown'}",
+                state=f"Status: Playing | {data['difficulty']}",
+                start=current_time,
+                end=end_time,
                 small_image="quest",
                 small_text="Meta Quest"
             )
@@ -73,26 +95,33 @@ def rpc_worker():
                 small_text="Meta Quest"
             )
 
-        #if data['type'] == "BeatmapPaused":
-        #    current_time = int(time.time())
-        #    stored_song_data['temp_time'] = stored_song_data['duration'] - ()
-        #    RPC.set_activity(
-        #        activity_type=ActivityType.PLAYING,
-        #        state="Level paused",
-        #    )
-        #if data['type'] == "BeatmapResumed":
-        #    current_time = int(time.time())
-        #    resumed_time = (current_time - stored_song_data['initial_epoch']) + current_time
-        #    dt_object = datetime.fromtimestamp(current_time)
-        #    new_dt = dt_object + timedelta(seconds=int(stored_song_data['duration']))
-        #    new_epoch = new_dt.timestamp()
-        #    RPC.set_activity(
-        #        activity_type=ActivityType.PLAYING,
-        #        state=f"{stored_song_data['author']} - {stored_song_data['title']}",
-        #        details=f"Mapped by {', '.join(stored_song_data['mappers']) or 'Unknown'} | {stored_song_data['difficulty']}",
-        #        start=current_time,
-        #        end=round(new_epoch)
-        #    )
+        if data['type'] == "BeatmapPaused":
+            pause_start_time = int(time.time())
+
+            RPC.set_activity(
+                activity_type=ActivityType.PLAYING,
+                state="Level paused",
+            )
+        if data['type'] == "BeatmapResumed":
+            current_time = int(time.time())
+            
+            if pause_start_time is not None:
+                total_paused_duration += current_time - pause_start_time
+                pause_start_time = None
+
+            adjusted_start = stored_song_data['start_time'] + total_paused_duration
+            adjusted_end = adjusted_start + stored_song_data['duration']
+
+            dt_object = datetime.fromtimestamp(current_time)
+            new_dt = dt_object + timedelta(seconds=int(stored_song_data['duration']))
+            new_epoch = new_dt.timestamp()
+            RPC.set_activity(
+                activity_type=ActivityType.PLAYING,
+                state=f"{stored_song_data['author']} - {stored_song_data['title']}",
+                details=f"Mapped by {', '.join(stored_song_data['mappers']) or 'Unknown'} | {stored_song_data['difficulty']}",
+                start=adjusted_start,
+                end=adjusted_end
+            )
 
 
 @asynccontextmanager
