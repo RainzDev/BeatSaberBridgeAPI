@@ -42,9 +42,27 @@ def rpc_worker():
             RPC.set_activity(
                 activity_type=ActivityType.PLAYING,
                 details=f"{data['author']} - {data['title']} | {', '.join(list(dict.fromkeys(data['mappers']))) or 'Unknown'}",
-                state=f"Status: Playing | {data['difficulty']}",
+                state=f"Status: Playing | {data['difficulty']} | Solo",
                 start=current_time,
                 end=end_time,
+                small_image="quest",
+                small_text="Meta Quest"
+            )
+        
+        if data['type'] == "LobbyPlayerOnConnect":
+            RPC.set_activity(
+                activity_type=ActivityType.PLAYING,
+                details="Status: Multiplayer Lobby",
+                state=f"{data['playerCount']} players waiting...",
+                small_image="quest",
+                small_text="Meta Quest"
+            )
+        
+        if data['type'] == "LobbyPlayerOnDisconnect":
+            RPC.set_activity(
+                activity_type=ActivityType.PLAYING,
+                details="Status: Multiplayer Lobby",
+                state=f"{data['playerCount']} players waiting...",
                 small_image="quest",
                 small_text="Meta Quest"
             )
@@ -52,10 +70,11 @@ def rpc_worker():
         if data['type'] == "MultiplayerBeatmapInitialized":
             current_time = int(time.time())
             end_time = current_time + data['duration']
+            time.sleep(5)
             RPC.set_activity(
                 activity_type=ActivityType.PLAYING,
                 details=f"{data['author']} - {data['title']} | {', '.join(list(dict.fromkeys(data['mappers']))) or 'Unknown'}",
-                state=f"Status: Playing | {data['difficulty']}",
+                state=f"Status: Playing | {data['difficulty']} | Multiplayer",
                 start=current_time,
                 end=end_time,
                 small_image="quest",
