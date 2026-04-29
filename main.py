@@ -16,13 +16,28 @@ rpc_queue = queue.Queue()
 global stored_song_data
 stored_song_data = {}
 
+# 15 minutes in seconds
+INACTIVITY_TIMEOUT = 900
+last_data_time = time.time()
+rpc_cleared = False
+
 def rpc_worker():
+    global last_data_time, rpc_cleared
     RPC.start()
 
     while True:
-        data = rpc_queue.get()
-        if data is None:
-            break
+        try:
+            data = rpc_queue.get(timeout=60)  # Check every 60 seconds for timeout
+            last_data_time = time.time()
+            rpc_cleared = False
+            if data is None:
+                break
+        except queue.Empty:
+            # Check if we've exceeded the inactivity timeout
+            if not rpc_cleared and (time.time() - last_data_time) > INACTIVITY_TIMEOUT:
+                RPC.clear_activity()
+                rpc_cleared = True
+            continue
         
         if data['type'] == "BeatmapInitialized":
             current_time = int(time.time())
